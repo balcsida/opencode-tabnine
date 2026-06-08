@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test"
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { createTabninePlugin } from "../src/index"
+import plugin, { createTabninePlugin } from "../src/index"
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
   return new Response(JSON.stringify(body), {
@@ -29,6 +29,10 @@ async function tempHome() {
 }
 
 describe("createTabninePlugin", () => {
+  test("exports the npm package plugin id", () => {
+    expect(plugin.id).toBe("opencode-provider-tabnine")
+  })
+
   test("injects a tabnine OpenAI-compatible provider with fallback models", async () => {
     const home = await tempHome()
     try {

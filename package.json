@@ -1,20 +1,46 @@
 {
   "$schema": "https://json.schemastore.org/package.json",
-  "name": "opencode-tabnine",
+  "name": "opencode-provider-tabnine",
   "version": "0.1.0",
   "description": "OpenCode plugin that exposes Tabnine Agentic as a provider",
   "type": "module",
-  "exports": {
-    ".": "./src/index.ts",
-    "./server": "./src/index.ts"
+  "license": "MIT",
+  "author": "David Balatoni <balcsida@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/balcsida/opencode-tabnine.git"
   },
+  "homepage": "https://github.com/balcsida/opencode-tabnine",
+  "bugs": "https://github.com/balcsida/opencode-tabnine/issues",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
+    "clean": "rm -rf dist",
+    "build": "bun build src/index.ts --target=bun --format=esm --outfile=dist/index.js && tsc -p tsconfig.build.json",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "check": "bun test && tsc --noEmit"
+    "check": "bun test && tsc --noEmit",
+    "prepublishOnly": "bun run check && bun run clean && bun run build"
   },
   "keywords": [
     "opencode-plugin",
+    "opencode-provider",
+    "provider",
     "tabnine"
   ],
   "devDependencies": {

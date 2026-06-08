@@ -95,6 +95,6 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
 }
 
 export default {
-  id: "opencode-tabnine",
+  id: "opencode-provider-tabnine",
   server: (_input: PluginInput, options?: PluginOptions) => createTabninePlugin(options as PluginDeps | undefined)(_input),
 }

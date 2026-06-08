@@ -1,21 +1,20 @@
-# opencode-tabnine
+# opencode-provider-tabnine
 
 OpenCode plugin that exposes Tabnine Agentic models as provider `tabnine`.
 
-## Install And Login
+## Install
 
-From a checkout of this repository:
+Install OpenCode, then install the provider plugin from npm:
 
 ```bash
 curl -fsSL https://opencode.ai/install | bash
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/opencode"
-node -e 'const fs=require("fs"),path=require("path"); const file=path.join(process.env.XDG_CONFIG_HOME||path.join(process.env.HOME,".config"),"opencode","opencode.json"); let config={}; try{config=JSON.parse(fs.readFileSync(file,"utf8"))}catch{} const plugin=`file://${process.cwd()}`; const plugins=Array.isArray(config.plugin)?config.plugin:[]; if(!plugins.some((entry)=>(Array.isArray(entry)?entry[0]:entry)===plugin)) plugins.push(plugin); config.plugin=plugins; fs.writeFileSync(file,`${JSON.stringify(config,null,2)}\n`)'
+opencode plugin -g opencode-provider-tabnine
 TABNINE_HOST=https://tabnine.example.com opencode auth login tabnine
 ```
 
 Replace `https://tabnine.example.com` with your Tabnine tenant URL. Other official OpenCode install options include `npm i -g opencode-ai`, `bun add -g opencode-ai`, `brew install anomalyco/tap/opencode`, and `paru -S opencode`.
 
-## Use Locally
+## Use From Source
 
 Add the plugin to an OpenCode config:
 
@@ -49,6 +48,13 @@ When credentials are available, the plugin calls `GET /chat/v2/models`, filters 
 
 ```bash
 bun install
-bun test
-bun run typecheck
+bun run check
+bun run clean && bun run build
+npm pack --dry-run
 ```
+
+## Release
+
+Releases are driven by semver tags named `v*.*.*`. The release workflow installs dependencies from `bun.lock`, runs checks, builds `dist`, verifies the package tarball, publishes to npm with provenance, and creates a GitHub release.
+
+Configure the repository secret `NPM_TOKEN` before pushing the first release tag.
