@@ -3,7 +3,7 @@ import { readdir, readFile, stat } from "node:fs/promises"
 import { join } from "node:path"
 
 const forbiddenTerms = [["te", "sco"].join(""), ["pri", "vate"].join("")]
-const scannedRoots = ["README.md", "src", "test", "docs", "scripts"]
+const scannedRoots = ["README.md", "src", "test", "docs", "scripts", ".github"]
 const ignoredDirs = new Set(["node_modules", ".git"])
 
 async function textFiles(path: string): Promise<string[]> {
