@@ -28,9 +28,7 @@ jobs:
       - run: bun run build
       - run: npm pack --dry-run
       - name: Publish to npm
-        run: npm publish --access public --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
       - name: Create GitHub release
         run: gh release create "$GITHUB_REF_NAME" --verify-tag --generate-notes --title "$GITHUB_REF_NAME"
         env:
