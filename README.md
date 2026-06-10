@@ -7,12 +7,9 @@ OpenCode plugin that exposes Tabnine Agentic models as provider `tabnine`.
 Install OpenCode, then install the provider plugin from npm:
 
 ```bash
-curl -fsSL https://opencode.ai/install | bash
 opencode plugin -g opencode-provider-tabnine
 TABNINE_HOST=https://tabnine.example.com opencode auth login tabnine
 ```
-
-Replace `https://tabnine.example.com` with your Tabnine tenant URL. Other official OpenCode install options include `npm i -g opencode-ai`, `bun add -g opencode-ai`, `brew install anomalyco/tap/opencode`, and `paru -S opencode`.
 
 ## Use From Source
 
@@ -52,9 +49,3 @@ bun run check
 bun run clean && bun run build
 npm pack --dry-run
 ```
-
-## Release
-
-Releases are driven by semver tags named `v*.*.*`. The release workflow installs dependencies from `bun.lock`, runs checks, builds `dist`, verifies the package tarball, publishes to npm with provenance, and creates a GitHub release.
-
-Configure the repository secret `NPM_TOKEN` before pushing the first release tag.
