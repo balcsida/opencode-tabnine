@@ -34,7 +34,8 @@
     "build": "bun build src/index.ts --target=bun --format=esm --outfile=dist/index.js && tsc -p tsconfig.build.json",
     "test": "bun test",
     "typecheck": "tsc --noEmit",
-    "check": "bun test && tsc --noEmit",
+    "check:references": "! git grep -iE 'te''sco|pri''vate' -- README.md src test .github",
+    "check": "bun test && tsc --noEmit && bun run check:references",
     "prepublishOnly": "bun run check && bun run clean && bun run build"
   },
   "keywords": [
