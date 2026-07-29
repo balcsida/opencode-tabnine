@@ -45,7 +45,6 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
       const bootstrap = await resolveBootstrapCredentials({
         host,
         env: deps.env,
-        home: deps.home,
         auth,
         fetch: deps.fetch,
         now: deps.now,
@@ -53,7 +52,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
       const discovered = bootstrap
         ? await fetchAgentModels({
             host,
-            access: bootstrap.access,
+            access: bootstrap,
             fetch: deps.fetch,
           })
         : {}
@@ -77,7 +76,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
               ...existingHeaders,
               "prompt-id": promptId,
             },
-            ...(bootstrap ? { apiKey: bootstrap.access } : {}),
+            ...(bootstrap ? { apiKey: bootstrap } : {}),
           },
           models: {
             ...models,
