@@ -7,8 +7,8 @@ import {
   Fetcher,
   OPENAI_COMPATIBLE_NPM,
   OAUTH_DUMMY_KEY,
+  PATH_CHAT_COMPLETIONS_BASE,
   PROVIDER_ID,
-  chatBaseUrl,
   fetchAgentModels,
   readOpenCodeAuth,
   resolveBootstrapCredentials,
@@ -68,7 +68,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
         [PROVIDER_ID]: {
           name: "Tabnine",
           npm: OPENAI_COMPATIBLE_NPM,
-          api: chatBaseUrl(host),
+          api: `${host}${PATH_CHAT_COMPLETIONS_BASE}`,
           options: {
             ...existing?.options,
             includeUsage: true,
