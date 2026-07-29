@@ -121,13 +121,12 @@ export async function resolveTabnineHost(input: { env?: Env; home?: string; auth
   return readTabnineSettingsHost(input.home ?? homedir())
 }
 
-export async function readOpenCodeAuth(input: { env?: Env; home?: string; providerID?: string } = {}) {
+export async function readOpenCodeAuth(input: { env?: Env; home?: string } = {}) {
   const env = input.env ?? process.env
-  const providerID = input.providerID ?? PROVIDER_ID
   const parsed = env.OPENCODE_AUTH_CONTENT
     ? parseJson<Record<string, OpenCodeAuth>>(env.OPENCODE_AUTH_CONTENT)
     : await readJson<Record<string, OpenCodeAuth>>(join(openCodeDataHome(env, input.home ?? homedir()), "opencode", "auth.json"))
-  return parsed?.[providerID]
+  return parsed?.[PROVIDER_ID]
 }
 
 export async function resolveBootstrapCredentials(input: {
