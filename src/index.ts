@@ -88,7 +88,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
     },
     "chat.params": async (hookInput, output) => {
       if (hookInput.model.providerID !== PROVIDER_ID) return
-      if (!hookInput.model.capabilities.reasoning) return
+      output.options.max_completion_tokens = output.maxOutputTokens
       output.maxOutputTokens = undefined
     },
   })
