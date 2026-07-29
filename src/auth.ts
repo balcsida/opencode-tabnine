@@ -17,6 +17,7 @@ import {
   loginBrowserUrl,
   loginErrorUrl,
   loginManualUrl,
+  normalizeHost,
   refreshIdToken,
   resolveTabnineHost,
 } from "./tabnine"
@@ -167,21 +168,10 @@ async function requireHost(options: AuthHookOptions, inputs?: Record<string, str
     home: options.home,
     auth,
   })
-  const fromInput = normalizeInputHost(inputs?.host)
+  const fromInput = normalizeHost(inputs?.host?.trim())
   const result = fromInput ?? host
   if (!result) throw new Error("Tabnine host is required.")
   return result
-}
-
-function normalizeInputHost(input: string | undefined) {
-  if (!input?.trim()) return
-  try {
-    const url = new URL(input.trim())
-    if (url.protocol !== "https:") return
-    return input.trim().replace(/\/+$/, "")
-  } catch {
-    return
-  }
 }
 
 function hostPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
@@ -193,7 +183,7 @@ function hostPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
       placeholder: "https://tabnine.example.com",
       validate(value) {
         if (!value) return undefined
-        return normalizeInputHost(value) ? undefined : "Must be an https URL"
+        return normalizeHost(value.trim()) ? undefined : "Must be an https URL"
       },
     },
   ]
