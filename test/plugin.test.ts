@@ -119,7 +119,7 @@ describe("createTabninePlugin", () => {
     }
   })
 
-  test("omits max output tokens for Tabnine reasoning models", async () => {
+  test("uses max completion tokens for every Tabnine model", async () => {
     const hooks = await createTabninePlugin({ env: { TABNINE_HOST: "https://tabnine.example.test" } })(pluginInput)
     const out = { temperature: 0, topP: 1, topK: 0, maxOutputTokens: 8192 as number | undefined, options: {} }
 
@@ -133,7 +133,7 @@ describe("createTabninePlugin", () => {
           providerID: "tabnine",
           api: { id: "model", url: "", npm: "@ai-sdk/openai-compatible" },
           capabilities: {
-            reasoning: true,
+            reasoning: false,
             temperature: false,
             attachment: true,
             toolcall: true,
@@ -147,5 +147,6 @@ describe("createTabninePlugin", () => {
     )
 
     expect(out.maxOutputTokens).toBeUndefined()
+    expect(out.options).toEqual({ max_completion_tokens: 8192 })
   })
 })
