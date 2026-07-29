@@ -7,8 +7,8 @@ import {
   Fetcher,
   OPENAI_COMPATIBLE_NPM,
   OAUTH_DUMMY_KEY,
+  PATH_CHAT_COMPLETIONS_BASE,
   PROVIDER_ID,
-  chatBaseUrl,
   fetchAgentModels,
   readOpenCodeAuth,
   resolveBootstrapCredentials,
@@ -45,7 +45,6 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
       const bootstrap = await resolveBootstrapCredentials({
         host,
         env: deps.env,
-        home: deps.home,
         auth,
         fetch: deps.fetch,
         now: deps.now,
@@ -53,7 +52,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
       const discovered = bootstrap
         ? await fetchAgentModels({
             host,
-            access: bootstrap.access,
+            access: bootstrap,
             fetch: deps.fetch,
           })
         : {}
@@ -69,7 +68,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
         [PROVIDER_ID]: {
           name: "Tabnine",
           npm: OPENAI_COMPATIBLE_NPM,
-          api: chatBaseUrl(host),
+          api: `${host}${PATH_CHAT_COMPLETIONS_BASE}`,
           options: {
             ...existing?.options,
             includeUsage: true,
@@ -77,7 +76,7 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
               ...existingHeaders,
               "prompt-id": promptId,
             },
-            ...(bootstrap ? { apiKey: bootstrap.access } : {}),
+            ...(bootstrap ? { apiKey: bootstrap } : {}),
           },
           models: {
             ...models,

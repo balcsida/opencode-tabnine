@@ -89,7 +89,7 @@ describe("resolveBootstrapCredentials", () => {
         fetch: fetcher,
         now: () => 1000,
       }),
-    ).toMatchObject({ access: "token-value", refresh: "", source: "env-token" })
+    ).toBe("token-value")
 
     expect(
       await resolveBootstrapCredentials({
@@ -98,48 +98,28 @@ describe("resolveBootstrapCredentials", () => {
         fetch: fetcher,
         now: () => 1000,
       }),
-    ).toMatchObject({ access: "jwt-value", refresh: "", source: "env-jwt" })
+    ).toBe("jwt-value")
 
     expect(fetchCalls).toEqual([])
   })
 
-  test("refreshes env refresh tokens and Tabnine CLI cached credentials", async () => {
-    const home = await tempHome()
+  test("refreshes env refresh tokens", async () => {
     const bodies: unknown[] = []
     const fetcher = async (_input: RequestInfo | URL, init?: RequestInit) => {
       bodies.push(JSON.parse(String(init?.body)))
       return jsonResponse({ idToken: `id-${bodies.length}`, expiresIn: 60 })
     }
 
-    try {
-      await mkdir(join(home, ".tabnine", "agent"), { recursive: true })
-      await writeFile(join(home, ".tabnine", "agent", "tabnine_creds.json"), JSON.stringify({ refreshToken: "cli-r" }))
+    expect(
+      await resolveBootstrapCredentials({
+        host: "https://tabnine.example.test",
+        env: { TABNINE_REFRESH_TOKEN: "env-r" },
+        fetch: fetcher,
+        now: () => 1000,
+      }),
+    ).toBe("id-1")
 
-      expect(
-        await resolveBootstrapCredentials({
-          host: "https://tabnine.example.test",
-          env: { TABNINE_REFRESH_TOKEN: "env-r" },
-          fetch: fetcher,
-          now: () => 1000,
-          home,
-        }),
-      ).toMatchObject({ access: "id-1", refresh: "env-r", expires: 61_000, source: "env-refresh" })
-
-      expect(
-        await resolveBootstrapCredentials({
-          host: "https://tabnine.example.test",
-          env: {},
-          fetch: fetcher,
-          now: () => 2000,
-          home,
-          includeCliCredentials: true,
-        }),
-      ).toMatchObject({ access: "id-2", refresh: "cli-r", expires: 62_000, source: "creds-file" })
-
-      expect(bodies).toEqual([{ refreshToken: "env-r" }, { refreshToken: "cli-r" }])
-    } finally {
-      await rm(home, { recursive: true, force: true })
-    }
+    expect(bodies).toEqual([{ refreshToken: "env-r" }])
   })
 })
 

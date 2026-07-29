@@ -3,7 +3,7 @@ import { spawn } from "node:child_process"
 import { createServer } from "node:http"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
-import type { AuthHook, AuthOAuthResult, StoredAuth } from "./types"
+import type { AuthHook, AuthOAuthResult } from "./types"
 import {
   CALLBACK_PATH,
   CALLBACK_QUERY_PARAM,
@@ -12,11 +12,11 @@ import {
   OAUTH_DUMMY_KEY,
   OpenCodeAuth,
   PATH_LOGIN_ERROR,
+  PATH_LOGIN_MANUAL,
   PROVIDER_ID,
   exchangeCustomToken,
   loginBrowserUrl,
-  loginErrorUrl,
-  loginManualUrl,
+  normalizeHost,
   refreshIdToken,
   resolveTabnineHost,
 } from "./tabnine"
@@ -86,7 +86,7 @@ export function createTabnineAuthHook(options: AuthHookOptions = {}): AuthHook {
         async authorize(inputs) {
           const host = await requireHost(options, inputs)
           return {
-            url: loginManualUrl(host),
+            url: `${host}${PATH_LOGIN_MANUAL}`,
             instructions: "Visit the URL, log in, then paste the custom token.",
             method: "code",
             async callback(code) {
@@ -110,7 +110,7 @@ export function createTabnineAuthHook(options: AuthHookOptions = {}): AuthHook {
   }
 }
 
-function createAuthenticatedFetch(options: AuthHookOptions & { getAuth: () => Promise<StoredAuth>; promptId: string }) {
+function createAuthenticatedFetch(options: AuthHookOptions & { getAuth: () => Promise<OpenCodeAuth>; promptId: string }) {
   let refreshPromise: Promise<{ access: string; expires: number; host: string; auth: OpenCodeAuth }> | undefined
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -167,21 +167,10 @@ async function requireHost(options: AuthHookOptions, inputs?: Record<string, str
     home: options.home,
     auth,
   })
-  const fromInput = normalizeInputHost(inputs?.host)
+  const fromInput = normalizeHost(inputs?.host?.trim())
   const result = fromInput ?? host
   if (!result) throw new Error("Tabnine host is required.")
   return result
-}
-
-function normalizeInputHost(input: string | undefined) {
-  if (!input?.trim()) return
-  try {
-    const url = new URL(input.trim())
-    if (url.protocol !== "https:") return
-    return input.trim().replace(/\/+$/, "")
-  } catch {
-    return
-  }
 }
 
 function hostPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
@@ -193,7 +182,7 @@ function hostPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
       placeholder: "https://tabnine.example.com",
       validate(value) {
         if (!value) return undefined
-        return normalizeInputHost(value) ? undefined : "Must be an https URL"
+        return normalizeHost(value.trim()) ? undefined : "Must be an https URL"
       },
     },
   ]
@@ -233,7 +222,7 @@ async function runCallbackServer(input: { host: string; env?: Env; fetch?: Fetch
     try {
       const url = new URL(req.url ?? "/", `http://${bindHost}`)
       if (!url.pathname.endsWith(CALLBACK_PATH)) {
-        res.writeHead(301, { Location: loginErrorUrl(input.host) || `${input.host}${PATH_LOGIN_ERROR}` })
+        res.writeHead(301, { Location: `${input.host}${PATH_LOGIN_ERROR}` })
         res.end()
         rejectCallback(new Error(`Auth callback not received. Unexpected request: ${req.url}`))
         return
