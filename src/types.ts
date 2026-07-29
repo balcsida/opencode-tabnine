@@ -21,25 +21,6 @@ export type Config = {
   >
 }
 
-export type StoredAuth =
-  | {
-      type: "oauth"
-      refresh: string
-      access: string
-      expires: number
-      enterpriseUrl?: string
-    }
-  | {
-      type: "api"
-      key: string
-      metadata?: Record<string, string>
-    }
-  | {
-      type: "wellknown"
-      key: string
-      token: string
-    }
-
 export type AuthOAuthResult =
   | ({
       url: string
@@ -86,7 +67,7 @@ export type AuthPrompt = {
 export type AuthHook = {
   provider: string
   loader?: (
-    auth: () => Promise<StoredAuth>,
+    auth: () => Promise<OpenCodeAuth>,
     provider?: unknown,
   ) => Promise<{
     apiKey?: string
@@ -124,3 +105,4 @@ export type Hooks = {
 }
 
 export type Plugin = (input: PluginInput, options?: PluginOptions) => Promise<Hooks>
+import type { OpenCodeAuth } from "./tabnine"

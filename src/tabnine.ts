@@ -16,10 +16,8 @@ export const CALLBACK_PATH = "/authcallback"
 export const CALLBACK_QUERY_PARAM = "custom_token"
 export const DEFAULT_CONTEXT_WINDOW = 180_000
 export const DEFAULT_OUTPUT_LIMIT = 8_192
-export const MAX_TOKEN_EXPIRES = Number.MAX_SAFE_INTEGER
 
 const TABNINE_AGENT_DIR = ".tabnine/agent"
-const TABNINE_CREDS_FILE = "tabnine_creds.json"
 const TABNINE_SETTINGS_FILE = "settings.json"
 
 export type Env = Record<string, string | undefined>
@@ -43,14 +41,6 @@ export type OpenCodeAuth =
       key: string
       token: string
     }
-
-export type TabnineCredentials = {
-  refresh: string
-  access: string
-  expires: number
-  enterpriseUrl: string
-  source: "env-token" | "env-jwt" | "env-refresh" | "opencode-auth" | "opencode-api" | "creds-file"
-}
 
 type TabnineModel = {
   id: string
@@ -131,78 +121,55 @@ export async function resolveTabnineHost(input: { env?: Env; home?: string; auth
   return readTabnineSettingsHost(input.home ?? homedir())
 }
 
-export async function readOpenCodeAuth(input: { env?: Env; home?: string; providerID?: string } = {}) {
+export async function readOpenCodeAuth(input: { env?: Env; home?: string } = {}) {
   const env = input.env ?? process.env
-  const providerID = input.providerID ?? PROVIDER_ID
   const parsed = env.OPENCODE_AUTH_CONTENT
     ? parseJson<Record<string, OpenCodeAuth>>(env.OPENCODE_AUTH_CONTENT)
     : await readJson<Record<string, OpenCodeAuth>>(join(openCodeDataHome(env, input.home ?? homedir()), "opencode", "auth.json"))
-  return parsed?.[providerID]
+  return parsed?.[PROVIDER_ID]
 }
 
 export async function resolveBootstrapCredentials(input: {
   host: string
   env?: Env
-  home?: string
   auth?: OpenCodeAuth
   fetch?: Fetcher
   now?: () => number
-  includeCliCredentials?: boolean
-}): Promise<TabnineCredentials | undefined> {
+}): Promise<string | undefined> {
   const env = input.env ?? process.env
   const now = input.now ?? Date.now
   const fetcher = input.fetch ?? fetch
 
   if (env.TABNINE_TOKEN) {
-    return directCredentials(input.host, env.TABNINE_TOKEN, "env-token")
+    return env.TABNINE_TOKEN
   }
   if (env.TABNINE_JWT) {
-    return directCredentials(input.host, env.TABNINE_JWT, "env-jwt")
+    return env.TABNINE_JWT
   }
   if (env.TABNINE_REFRESH_TOKEN) {
-    return refreshCredentials({
+    return refreshIdToken({
       host: input.host,
       refresh: env.TABNINE_REFRESH_TOKEN,
-      source: "env-refresh",
       fetch: fetcher,
       now,
-    }).catch(() => undefined)
+    }).then((token) => token.access, () => undefined)
   }
   if (input.auth?.type === "oauth") {
     if (input.auth.access && input.auth.expires > now()) {
-      return {
-        refresh: input.auth.refresh,
-        access: input.auth.access,
-        expires: input.auth.expires,
-        enterpriseUrl: input.host,
-        source: "opencode-auth",
-      }
+      return input.auth.access
     }
     if (input.auth.refresh) {
-      return refreshCredentials({
+      return refreshIdToken({
         host: input.host,
         refresh: input.auth.refresh,
-        source: "opencode-auth",
         fetch: fetcher,
         now,
-      }).catch(() => undefined)
+      }).then((token) => token.access, () => undefined)
     }
   }
   if (input.auth?.type === "api") {
-    return directCredentials(input.host, input.auth.key, "opencode-api")
+    return input.auth.key
   }
-
-  if (!input.includeCliCredentials) return
-
-  const cliRefresh = await readTabnineCliRefreshToken(input.home ?? homedir())
-  if (!cliRefresh) return
-  return refreshCredentials({
-    host: input.host,
-    refresh: cliRefresh,
-    source: "creds-file",
-    fetch: fetcher,
-    now,
-  }).catch(() => undefined)
 }
 
 export async function refreshIdToken(input: { host: string; refresh: string; fetch?: Fetcher; now?: () => number }) {
@@ -257,25 +224,8 @@ export async function fetchAgentModels(input: { host: string; access: string; fe
   }
 }
 
-export function chatBaseUrl(host: string) {
-  return `${host}${PATH_CHAT_COMPLETIONS_BASE}`
-}
-
-export function loginManualUrl(host: string) {
-  return `${host}${PATH_LOGIN_MANUAL}`
-}
-
 export function loginBrowserUrl(host: string, returnUrl: string) {
   return `${host}${PATH_LOGIN_PAGE}?${new URLSearchParams({ returnUrl }).toString()}`
-}
-
-export function loginErrorUrl(host: string) {
-  return `${host}${PATH_LOGIN_ERROR}`
-}
-
-export async function readTabnineCliRefreshToken(home = homedir()) {
-  const parsed = await readJson<{ refreshToken?: string }>(join(home, TABNINE_AGENT_DIR, TABNINE_CREDS_FILE))
-  return parsed?.refreshToken
 }
 
 function modelFromTabnine(model: TabnineModel) {
@@ -300,33 +250,6 @@ function modelConfig(input: { name: string; reasoning: boolean; context: number;
     },
     cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
     limit: { context: input.context, output: DEFAULT_OUTPUT_LIMIT },
-  }
-}
-
-function directCredentials(host: string, access: string, source: TabnineCredentials["source"]): TabnineCredentials {
-  return {
-    refresh: "",
-    access,
-    expires: MAX_TOKEN_EXPIRES,
-    enterpriseUrl: host,
-    source,
-  }
-}
-
-async function refreshCredentials(input: {
-  host: string
-  refresh: string
-  source: TabnineCredentials["source"]
-  fetch: Fetcher
-  now: () => number
-}): Promise<TabnineCredentials> {
-  const token = await refreshIdToken(input)
-  return {
-    refresh: input.refresh,
-    access: token.access,
-    expires: token.expires,
-    enterpriseUrl: input.host,
-    source: input.source,
   }
 }
 
