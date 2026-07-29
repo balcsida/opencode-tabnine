@@ -118,6 +118,7 @@ export type Hooks = {
     },
     output: {
       maxOutputTokens: number | undefined
+      options: Record<string, unknown>
     },
   ) => Promise<void>
 }
