@@ -224,20 +224,8 @@ export async function fetchAgentModels(input: { host: string; access: string; fe
   }
 }
 
-export function chatBaseUrl(host: string) {
-  return `${host}${PATH_CHAT_COMPLETIONS_BASE}`
-}
-
-export function loginManualUrl(host: string) {
-  return `${host}${PATH_LOGIN_MANUAL}`
-}
-
 export function loginBrowserUrl(host: string, returnUrl: string) {
   return `${host}${PATH_LOGIN_PAGE}?${new URLSearchParams({ returnUrl }).toString()}`
-}
-
-export function loginErrorUrl(host: string) {
-  return `${host}${PATH_LOGIN_ERROR}`
 }
 
 function modelFromTabnine(model: TabnineModel) {

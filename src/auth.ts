@@ -12,11 +12,10 @@ import {
   OAUTH_DUMMY_KEY,
   OpenCodeAuth,
   PATH_LOGIN_ERROR,
+  PATH_LOGIN_MANUAL,
   PROVIDER_ID,
   exchangeCustomToken,
   loginBrowserUrl,
-  loginErrorUrl,
-  loginManualUrl,
   normalizeHost,
   refreshIdToken,
   resolveTabnineHost,
@@ -87,7 +86,7 @@ export function createTabnineAuthHook(options: AuthHookOptions = {}): AuthHook {
         async authorize(inputs) {
           const host = await requireHost(options, inputs)
           return {
-            url: loginManualUrl(host),
+            url: `${host}${PATH_LOGIN_MANUAL}`,
             instructions: "Visit the URL, log in, then paste the custom token.",
             method: "code",
             async callback(code) {
@@ -223,7 +222,7 @@ async function runCallbackServer(input: { host: string; env?: Env; fetch?: Fetch
     try {
       const url = new URL(req.url ?? "/", `http://${bindHost}`)
       if (!url.pathname.endsWith(CALLBACK_PATH)) {
-        res.writeHead(301, { Location: loginErrorUrl(input.host) || `${input.host}${PATH_LOGIN_ERROR}` })
+        res.writeHead(301, { Location: `${input.host}${PATH_LOGIN_ERROR}` })
         res.end()
         rejectCallback(new Error(`Auth callback not received. Unexpected request: ${req.url}`))
         return
