@@ -3,7 +3,7 @@ import { spawn } from "node:child_process"
 import { createServer } from "node:http"
 import type { IncomingMessage, ServerResponse } from "node:http"
 import type { AddressInfo } from "node:net"
-import type { AuthHook, AuthOAuthResult, StoredAuth } from "./types"
+import type { AuthHook, AuthOAuthResult } from "./types"
 import {
   CALLBACK_PATH,
   CALLBACK_QUERY_PARAM,
@@ -110,7 +110,7 @@ export function createTabnineAuthHook(options: AuthHookOptions = {}): AuthHook {
   }
 }
 
-function createAuthenticatedFetch(options: AuthHookOptions & { getAuth: () => Promise<StoredAuth>; promptId: string }) {
+function createAuthenticatedFetch(options: AuthHookOptions & { getAuth: () => Promise<OpenCodeAuth>; promptId: string }) {
   let refreshPromise: Promise<{ access: string; expires: number; host: string; auth: OpenCodeAuth }> | undefined
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
