@@ -8,8 +8,10 @@ Install OpenCode, then install the provider plugin from npm:
 
 ```bash
 opencode plugin -g opencode-provider-tabnine
-TABNINE_HOST=https://tabnine.example.com opencode auth login tabnine
+opencode auth login --provider tabnine
 ```
+
+Enter your Tabnine tenant URL when prompted, then choose browser or manual login. `TABNINE_HOST` configures normal provider operation but is not used to prefill the interactive login prompt.
 
 ## Use From Source
 
@@ -27,7 +29,7 @@ Then authenticate:
 opencode auth login tabnine
 ```
 
-Set `TABNINE_HOST` or make sure Tabnine CLI has `~/.tabnine/agent/settings.json` with `general.tabnineHost`. Use your Tabnine tenant URL:
+For normal provider operation, set `TABNINE_HOST` or make sure Tabnine CLI has `~/.tabnine/agent/settings.json` with `general.tabnineHost`. Use your Tabnine tenant URL:
 
 ```bash
 export TABNINE_HOST=https://tabnine.example.com

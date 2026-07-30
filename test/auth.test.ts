@@ -19,6 +19,20 @@ async function tempHome() {
 }
 
 describe("createTabnineAuthHook", () => {
+  test("prompts for host before login method", () => {
+    const hook = createTabnineAuthHook()
+
+    expect(hook.methods).toHaveLength(1)
+    expect(hook.methods[0]?.prompts?.map((prompt) => prompt.key)).toEqual(["host", "method"])
+    expect(hook.methods[0]?.prompts?.[1]).toMatchObject({
+      type: "select",
+      options: [
+        { label: "Browser login", value: "browser" },
+        { label: "Manual custom token", value: "manual" },
+      ],
+    })
+  })
+
   test("browser auth ignores cached CLI credentials and waits for callback", async () => {
     const home = await tempHome()
     const requests: Array<{ url: string; body: unknown }> = []
@@ -48,7 +62,7 @@ describe("createTabnineAuthHook", () => {
         },
       })
 
-      const authorize = await (hook.methods[0] as OAuthMethod).authorize({})
+      const authorize = await (hook.methods[0] as OAuthMethod).authorize({ method: "browser" })
       expect(authorize.method).toBe("auto")
       expect(authorize.url).toStartWith("https://tabnine.example.test/app/user/custom-token?")
       expect(openedUrls).toEqual([authorize.url])
@@ -97,7 +111,7 @@ describe("createTabnineAuthHook", () => {
       },
     })
 
-    const authorize = await (hook.methods[1] as OAuthMethod).authorize({})
+    const authorize = await (hook.methods[0] as OAuthMethod).authorize({ method: "manual" })
     expect(authorize).toMatchObject({
       method: "code",
       url: "https://tabnine.example.test/app/user/custom-token/manual",

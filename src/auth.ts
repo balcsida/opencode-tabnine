@@ -56,10 +56,32 @@ export function createTabnineAuthHook(options: AuthHookOptions = {}): AuthHook {
     methods: [
       {
         type: "oauth",
-        label: "Tabnine browser login",
-        prompts: hostPrompts(),
+        label: "Tabnine login",
+        prompts: loginPrompts(),
         async authorize(inputs) {
           const host = await requireHost(options, inputs)
+          if (inputs?.method === "manual") {
+            return {
+              url: `${host}${PATH_LOGIN_MANUAL}`,
+              instructions: "Visit the URL, log in, then paste the custom token.",
+              method: "code",
+              async callback(code: string) {
+                const refresh = await exchangeCustomToken({
+                  host,
+                  customToken: code.trim(),
+                  fetch: options.fetch,
+                })
+                const token = await refreshIdToken({
+                  host,
+                  refresh,
+                  fetch: options.fetch,
+                  now: options.now,
+                })
+                return success({ refresh, access: token.access, expires: token.expires, host })
+              },
+            }
+          }
+
           const server = await runCallbackServer({ host, env: options.env, fetch: options.fetch })
           await openBrowserUrl(server.url, options)
           return {
@@ -68,33 +90,6 @@ export function createTabnineAuthHook(options: AuthHookOptions = {}): AuthHook {
             method: "auto",
             async callback() {
               const refresh = await withTimeout(server.callback)
-              const token = await refreshIdToken({
-                host,
-                refresh,
-                fetch: options.fetch,
-                now: options.now,
-              })
-              return success({ refresh, access: token.access, expires: token.expires, host })
-            },
-          }
-        },
-      },
-      {
-        type: "oauth",
-        label: "Tabnine manual custom token",
-        prompts: hostPrompts(),
-        async authorize(inputs) {
-          const host = await requireHost(options, inputs)
-          return {
-            url: `${host}${PATH_LOGIN_MANUAL}`,
-            instructions: "Visit the URL, log in, then paste the custom token.",
-            method: "code",
-            async callback(code) {
-              const refresh = await exchangeCustomToken({
-                host,
-                customToken: code.trim(),
-                fetch: options.fetch,
-              })
               const token = await refreshIdToken({
                 host,
                 refresh,
@@ -173,7 +168,7 @@ async function requireHost(options: AuthHookOptions, inputs?: Record<string, str
   return result
 }
 
-function hostPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
+function loginPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
   return [
     {
       type: "text",
@@ -184,6 +179,15 @@ function hostPrompts(): NonNullable<AuthHook["methods"][number]["prompts"]> {
         if (!value) return undefined
         return normalizeHost(value.trim()) ? undefined : "Must be an https URL"
       },
+    },
+    {
+      type: "select",
+      key: "method",
+      message: "Login method",
+      options: [
+        { label: "Browser login", value: "browser" },
+        { label: "Manual custom token", value: "manual" },
+      ],
     },
   ]
 }
