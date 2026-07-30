@@ -41,7 +41,7 @@ After the first login, restart OpenCode so the config hook can load the persiste
 
 ## Models
 
-When credentials are available, the plugin calls `GET /chat/v2/models`, filters to models with the `agent` capability, and registers the live list. If discovery is unavailable, it falls back to the four Agentic model IDs documented for Tabnine CLI 0.16.3.
+When credentials are available, the plugin calls `GET /chat/v2/models`, filters to models with the `agent` capability, and registers the live list. Model IDs are tenant-specific, so the plugin does not bundle a fallback catalog.
 
 ## Development
 

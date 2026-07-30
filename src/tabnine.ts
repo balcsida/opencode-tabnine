@@ -74,32 +74,7 @@ export type OpenCodeModelConfig = {
   variants?: Record<string, { reasoningEffort: string }>
 }
 
-export const FALLBACK_AGENT_MODELS: Record<string, OpenCodeModelConfig> = {
-  "tenant-model-id-1": modelConfig({
-    name: "Claude 4.5 Haiku",
-    reasoning: true,
-    context: 200_000,
-    variants: reasoningVariants("Claude 4.5 Haiku"),
-  }),
-  "tenant-model-id-2": modelConfig({
-    name: "Claude 4.6 Sonnet",
-    reasoning: true,
-    context: 200_000,
-    variants: reasoningVariants("Claude 4.6 Sonnet"),
-  }),
-  "tenant-model-id-3": modelConfig({
-    name: "GPT-5.2",
-    reasoning: true,
-    context: 400_000,
-    variants: reasoningVariants("GPT-5.2"),
-  }),
-  "tenant-model-id-4": modelConfig({
-    name: "GPT-5.4",
-    reasoning: true,
-    context: 400_000,
-    variants: reasoningVariants("GPT-5.4"),
-  }),
-}
+export const FALLBACK_AGENT_MODELS: Record<string, OpenCodeModelConfig> = {}
 
 export function normalizeHost(input: string | undefined | null) {
   if (!input) return

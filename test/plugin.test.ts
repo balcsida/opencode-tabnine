@@ -56,9 +56,7 @@ describe("createTabninePlugin", () => {
         },
       })
       expect(config.provider?.tabnine.options.apiKey).toBeUndefined()
-      expect(config.provider?.tabnine.models["tenant-model-id-2"].variants).toHaveProperty("max")
-      expect(config.provider?.tabnine.models["tenant-model-id-4"].variants).toHaveProperty("xhigh")
-      expect(Object.keys(config.provider?.tabnine.models ?? {})).toHaveLength(4)
+      expect(config.provider?.tabnine.models).toEqual({})
     } finally {
       await rm(home, { recursive: true, force: true })
     }
@@ -116,7 +114,7 @@ describe("createTabninePlugin", () => {
       await hooks.config!(config as never)
 
       expect(config.provider?.tabnine.options.apiKey).toBeUndefined()
-      expect(Object.keys(config.provider?.tabnine.models ?? {})).toHaveLength(4)
+      expect(config.provider?.tabnine.models).toEqual({})
     } finally {
       await rm(home, { recursive: true, force: true })
     }

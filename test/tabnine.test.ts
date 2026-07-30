@@ -3,7 +3,6 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import {
-  FALLBACK_AGENT_MODELS,
   fetchAgentModels,
   exposeClaudeReasoning,
   prepareTabnineRequest,
@@ -219,16 +218,6 @@ describe("fetchAgentModels", () => {
     })
   })
 
-  test("static fallback contains the documented Agentic models", () => {
-    expect(Object.keys(FALLBACK_AGENT_MODELS)).toEqual([
-      "tenant-model-id-1",
-      "tenant-model-id-2",
-      "tenant-model-id-3",
-      "tenant-model-id-4",
-    ])
-    expect(FALLBACK_AGENT_MODELS["tenant-model-id-2"]?.variants).toHaveProperty("max")
-    expect(FALLBACK_AGENT_MODELS["tenant-model-id-4"]?.variants).toHaveProperty("xhigh")
-  })
 })
 
 describe("prepareTabnineRequest", () => {
