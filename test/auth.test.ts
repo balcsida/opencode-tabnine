@@ -19,6 +19,20 @@ async function tempHome() {
 }
 
 describe("createTabnineAuthHook", () => {
+  test("prompts for host before login method", () => {
+    const hook = createTabnineAuthHook()
+
+    expect(hook.methods).toHaveLength(1)
+    expect(hook.methods[0]?.prompts?.map((prompt) => prompt.key)).toEqual(["host", "method"])
+    expect(hook.methods[0]?.prompts?.[1]).toMatchObject({
+      type: "select",
+      options: [
+        { label: "Browser login", value: "browser" },
+        { label: "Manual custom token", value: "manual" },
+      ],
+    })
+  })
+
   test("browser auth ignores cached CLI credentials and waits for callback", async () => {
     const home = await tempHome()
     const requests: Array<{ url: string; body: unknown }> = []
@@ -48,7 +62,7 @@ describe("createTabnineAuthHook", () => {
         },
       })
 
-      const authorize = await (hook.methods[0] as OAuthMethod).authorize({})
+      const authorize = await (hook.methods[0] as OAuthMethod).authorize({ method: "browser" })
       expect(authorize.method).toBe("auto")
       expect(authorize.url).toStartWith("https://tabnine.example.test/app/user/custom-token?")
       expect(openedUrls).toEqual([authorize.url])
@@ -97,7 +111,7 @@ describe("createTabnineAuthHook", () => {
       },
     })
 
-    const authorize = await (hook.methods[1] as OAuthMethod).authorize({})
+    const authorize = await (hook.methods[0] as OAuthMethod).authorize({ method: "manual" })
     expect(authorize).toMatchObject({
       method: "code",
       url: "https://tabnine.example.test/app/user/custom-token/manual",
@@ -119,6 +133,37 @@ describe("createTabnineAuthHook", () => {
       {
         url: "https://tabnine.example.test/auth/token/refresh",
         body: { refreshToken: "manual-r" },
+      },
+    ])
+  })
+
+  test("loader uses stored API credentials and translates Claude requests", async () => {
+    const requests: Array<{ headers: Record<string, string>; body: unknown }> = []
+    const hook = createTabnineAuthHook({
+      fetch: async (input, init) => {
+        const request = new Request(input, init)
+        requests.push({ headers: Object.fromEntries(request.headers), body: await request.json() })
+        return jsonResponse({ choices: [] })
+      },
+    })
+    const options = await hook.loader!(
+      async () => ({ type: "api", key: "api-token" }),
+      {} as never,
+    )
+
+    await options.fetch("https://tabnine.example.test/chat/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer opencode-oauth-dummy-key" },
+      body: JSON.stringify({ reasoning_effort: "claude-adaptive-high" }),
+    })
+
+    expect(requests).toEqual([
+      {
+        headers: { authorization: "Bearer api-token" },
+        body: {
+          thinking: { type: "adaptive", display: "summarized" },
+          output_config: { effort: "high" },
+        },
       },
     ])
   })

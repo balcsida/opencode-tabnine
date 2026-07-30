@@ -56,13 +56,20 @@ export type AuthFailed = {
   type: "failed"
 }
 
-export type AuthPrompt = {
-  type: "text"
-  key: string
-  message: string
-  placeholder?: string
-  validate?: (value: string) => string | undefined
-}
+export type AuthPrompt =
+  | {
+      type: "text"
+      key: string
+      message: string
+      placeholder?: string
+      validate?: (value: string) => string | undefined
+    }
+  | {
+      type: "select"
+      key: string
+      message: string
+      options: Array<{ label: string; value: string; hint?: string }>
+    }
 
 export type AuthHook = {
   provider: string
