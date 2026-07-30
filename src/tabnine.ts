@@ -71,6 +71,7 @@ export type OpenCodeModelConfig = {
     context: number
     output: number
   }
+  variants?: Record<string, { reasoningEffort: string }>
 }
 
 export const FALLBACK_AGENT_MODELS: Record<string, OpenCodeModelConfig> = {
@@ -78,21 +79,25 @@ export const FALLBACK_AGENT_MODELS: Record<string, OpenCodeModelConfig> = {
     name: "Claude 4.5 Haiku",
     reasoning: true,
     context: 200_000,
+    variants: reasoningVariants("Claude 4.5 Haiku"),
   }),
   "tenant-model-id-2": modelConfig({
     name: "Claude 4.6 Sonnet",
     reasoning: true,
     context: 200_000,
+    variants: reasoningVariants("Claude 4.6 Sonnet"),
   }),
   "tenant-model-id-3": modelConfig({
     name: "GPT-5.2",
     reasoning: true,
     context: 400_000,
+    variants: reasoningVariants("GPT-5.2"),
   }),
   "tenant-model-id-4": modelConfig({
     name: "GPT-5.4",
     reasoning: true,
     context: 400_000,
+    variants: reasoningVariants("GPT-5.4"),
   }),
 }
 
@@ -228,16 +233,115 @@ export function loginBrowserUrl(host: string, returnUrl: string) {
   return `${host}${PATH_LOGIN_PAGE}?${new URLSearchParams({ returnUrl }).toString()}`
 }
 
-function modelFromTabnine(model: TabnineModel) {
-  return modelConfig({
-    name: model.name,
-    reasoning: model.capabilities?.includes("anthropic-thinking") ?? false,
-    vision: model.capabilities?.includes("vision") ?? false,
-    context: model.modelProperties?.maxContextLength ?? DEFAULT_CONTEXT_WINDOW,
+export function prepareTabnineRequest(init: RequestInit = {}) {
+  if (typeof init.body !== "string") return init
+  try {
+    const body = JSON.parse(init.body)
+    const effort = body.reasoning_effort
+    if (typeof effort !== "string" || !effort.startsWith("claude-")) return init
+    delete body.reasoning_effort
+    if (effort.startsWith("claude-adaptive-")) {
+      body.thinking = { type: "adaptive", display: "summarized" }
+      body.output_config = { effort: effort.replace("claude-adaptive-", "") }
+    } else {
+      const budget = Number(effort.match(/^claude-thinking-(\d+)$/)?.[1])
+      if (budget) body.thinking = { type: "enabled", budget_tokens: budget }
+    }
+    return { ...init, body: JSON.stringify(body) }
+  } catch {
+    return init
+  }
+}
+
+export function exposeClaudeReasoning(response: Response) {
+  const type = response.headers.get("content-type") ?? ""
+  if (type.includes("text/event-stream")) {
+    return new Response(response.body?.pipeThrough(sseReasoningTransform()), response)
+  }
+  if (!type.includes("application/json")) return response
+
+  return new Response(
+    new ReadableStream({
+      async start(controller) {
+        controller.enqueue(new TextEncoder().encode(JSON.stringify(mapClaudeReasoning(await response.json()))))
+        controller.close()
+      },
+    }),
+    response,
+  )
+}
+
+function sseReasoningTransform() {
+  const decoder = new TextDecoder()
+  const encoder = new TextEncoder()
+  let buffer = ""
+  return new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      buffer += decoder.decode(chunk, { stream: true })
+      const lines = buffer.split("\n")
+      buffer = lines.pop() ?? ""
+      for (const line of lines) controller.enqueue(encoder.encode(mapSseLine(line) + "\n"))
+    },
+    flush(controller) {
+      buffer += decoder.decode()
+      if (buffer) controller.enqueue(encoder.encode(mapSseLine(buffer)))
+    },
   })
 }
 
-function modelConfig(input: { name: string; reasoning: boolean; context: number; vision?: boolean }): OpenCodeModelConfig {
+function mapSseLine(line: string) {
+  if (!line.startsWith("data: ") || line === "data: [DONE]") return line
+  try {
+    return `data: ${JSON.stringify(mapClaudeReasoning(JSON.parse(line.slice(6))))}`
+  } catch {
+    return line
+  }
+}
+
+function mapClaudeReasoning(data: any) {
+  for (const choice of data?.choices ?? []) {
+    for (const part of [choice.message, choice.delta]) {
+      const thinking = part?.content_blocks
+        ?.map((block: any) => block.thinking ?? block.delta?.thinking)
+        .filter(Boolean)
+        .join("")
+      if (thinking) part.reasoning_content = thinking
+    }
+  }
+  return data
+}
+
+function modelFromTabnine(model: TabnineModel) {
+  const variants = reasoningVariants(model.name)
+  return modelConfig({
+    name: model.name,
+    reasoning: Boolean(variants) || (model.capabilities?.includes("anthropic-thinking") ?? false),
+    vision: model.capabilities?.includes("vision") ?? false,
+    context: model.modelProperties?.maxContextLength ?? DEFAULT_CONTEXT_WINDOW,
+    variants,
+  })
+}
+
+function reasoningVariants(name: string): OpenCodeModelConfig["variants"] {
+  const efforts = name === "Claude 4.6 Sonnet"
+    ? ["low", "medium", "high", "max"].map((effort) => [effort, `claude-adaptive-${effort}`])
+    : name === "Claude 4.5 Haiku"
+      ? [1024, 2048, 4096].map((budget) => [`thinking-${budget}`, `claude-thinking-${budget}`])
+      : name === "GPT-5.5"
+        ? ["none", "low", "medium", "high", "xhigh"].map((effort) => [effort, effort])
+        : /^GPT-5\./.test(name)
+          ? ["low", "medium", "high", "xhigh"].map((effort) => [effort, effort])
+          : undefined
+  return efforts && Object.fromEntries(efforts.map(([name, value]) => [name, { reasoningEffort: String(value) }]))
+}
+
+function modelConfig(input: {
+  name: string
+  reasoning: boolean
+  context: number
+  vision?: boolean
+  variants?: OpenCodeModelConfig["variants"]
+}): OpenCodeModelConfig {
   return {
     name: input.name,
     reasoning: input.reasoning,
@@ -250,6 +354,7 @@ function modelConfig(input: { name: string; reasoning: boolean; context: number;
     },
     cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
     limit: { context: input.context, output: DEFAULT_OUTPUT_LIMIT },
+    ...(input.variants ? { variants: input.variants } : {}),
   }
 }
 

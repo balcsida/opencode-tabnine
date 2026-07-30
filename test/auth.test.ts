@@ -137,6 +137,37 @@ describe("createTabnineAuthHook", () => {
     ])
   })
 
+  test("loader uses stored API credentials and translates Claude requests", async () => {
+    const requests: Array<{ headers: Record<string, string>; body: unknown }> = []
+    const hook = createTabnineAuthHook({
+      fetch: async (input, init) => {
+        const request = new Request(input, init)
+        requests.push({ headers: Object.fromEntries(request.headers), body: await request.json() })
+        return jsonResponse({ choices: [] })
+      },
+    })
+    const options = await hook.loader!(
+      async () => ({ type: "api", key: "api-token" }),
+      {} as never,
+    )
+
+    await options.fetch("https://tabnine.example.test/chat/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: "Bearer opencode-oauth-dummy-key" },
+      body: JSON.stringify({ reasoning_effort: "claude-adaptive-high" }),
+    })
+
+    expect(requests).toEqual([
+      {
+        headers: { authorization: "Bearer api-token" },
+        body: {
+          thinking: { type: "adaptive", display: "summarized" },
+          output_config: { effort: "high" },
+        },
+      },
+    ])
+  })
+
   test("loader refreshes expired OAuth auth and rewrites request headers", async () => {
     const saved: unknown[] = []
     const requests: Array<{ url: string; headers: Record<string, string>; body?: unknown }> = []

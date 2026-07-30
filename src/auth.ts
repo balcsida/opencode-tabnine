@@ -15,8 +15,10 @@ import {
   PATH_LOGIN_MANUAL,
   PROVIDER_ID,
   exchangeCustomToken,
+  exposeClaudeReasoning,
   loginBrowserUrl,
   normalizeHost,
+  prepareTabnineRequest,
   refreshIdToken,
   resolveTabnineHost,
 } from "./tabnine"
@@ -110,7 +112,11 @@ function createAuthenticatedFetch(options: AuthHookOptions & { getAuth: () => Pr
 
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     const current = await options.getAuth()
-    if (current.type !== "oauth") return (options.fetch ?? fetch)(input, init)
+    if (current.type !== "oauth") {
+      const headers = new Headers(init?.headers)
+      if (current.type === "api") headers.set("authorization", `Bearer ${current.key}`)
+      return exposeClaudeReasoning(await (options.fetch ?? fetch)(input, prepareTabnineRequest({ ...init, headers })))
+    }
 
     const host = await requireHost(options, undefined, current)
     const env = options.env ?? process.env
@@ -128,10 +134,10 @@ function createAuthenticatedFetch(options: AuthHookOptions & { getAuth: () => Pr
     headers.set("authorization", `Bearer ${token.access}`)
     headers.set("prompt-id", options.promptId)
 
-    return (options.fetch ?? fetch)(input, {
+    return exposeClaudeReasoning(await (options.fetch ?? fetch)(input, prepareTabnineRequest({
       ...init,
       headers,
-    })
+    })))
   }
 }
 

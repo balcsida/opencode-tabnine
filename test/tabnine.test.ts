@@ -5,6 +5,8 @@ import { join } from "node:path"
 import {
   FALLBACK_AGENT_MODELS,
   fetchAgentModels,
+  exposeClaudeReasoning,
+  prepareTabnineRequest,
   resolveBootstrapCredentials,
   resolveTabnineHost,
 } from "../src/tabnine"
@@ -134,10 +136,16 @@ describe("fetchAgentModels", () => {
         return jsonResponse({
           models: [
             {
-              id: "agent-model",
-              name: "Agent Model",
+              id: "sonnet-model",
+              name: "Claude 4.6 Sonnet",
               capabilities: ["agent", "vision", "anthropic-thinking"],
               modelProperties: { maxContextLength: 123456 },
+            },
+            {
+              id: "gpt-model",
+              name: "GPT-5.5",
+              capabilities: ["agent"],
+              modelProperties: { maxContextLength: 200000 },
             },
             { id: "chat-model", name: "Chat Model", capabilities: ["chat"] },
           ],
@@ -152,8 +160,8 @@ describe("fetchAgentModels", () => {
       },
     ])
     expect(models).toEqual({
-      "agent-model": {
-        name: "Agent Model",
+      "sonnet-model": {
+        name: "Claude 4.6 Sonnet",
         reasoning: true,
         attachment: true,
         tool_call: true,
@@ -161,7 +169,53 @@ describe("fetchAgentModels", () => {
         modalities: { input: ["text", "image"], output: ["text"] },
         cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
         limit: { context: 123456, output: 8192 },
+        variants: {
+          low: { reasoningEffort: "claude-adaptive-low" },
+          medium: { reasoningEffort: "claude-adaptive-medium" },
+          high: { reasoningEffort: "claude-adaptive-high" },
+          max: { reasoningEffort: "claude-adaptive-max" },
+        },
       },
+      "gpt-model": {
+        name: "GPT-5.5",
+        reasoning: true,
+        attachment: false,
+        tool_call: true,
+        temperature: false,
+        modalities: { input: ["text"], output: ["text"] },
+        cost: { input: 0, output: 0, cache_read: 0, cache_write: 0 },
+        limit: { context: 200000, output: 8192 },
+        variants: {
+          none: { reasoningEffort: "none" },
+          low: { reasoningEffort: "low" },
+          medium: { reasoningEffort: "medium" },
+          high: { reasoningEffort: "high" },
+          xhigh: { reasoningEffort: "xhigh" },
+        },
+      },
+    })
+  })
+
+  test("uses fixed thinking budgets for Claude 4.5 Haiku", async () => {
+    const models = await fetchAgentModels({
+      host: "https://tabnine.example.test",
+      access: "id-token",
+      fetch: async () =>
+        jsonResponse({
+          models: [
+            {
+              id: "haiku-model",
+              name: "Claude 4.5 Haiku",
+              capabilities: ["agent", "anthropic-thinking"],
+            },
+          ],
+        }),
+    })
+
+    expect(models["haiku-model"]?.variants).toEqual({
+      "thinking-1024": { reasoningEffort: "claude-thinking-1024" },
+      "thinking-2048": { reasoningEffort: "claude-thinking-2048" },
+      "thinking-4096": { reasoningEffort: "claude-thinking-4096" },
     })
   })
 
@@ -172,5 +226,60 @@ describe("fetchAgentModels", () => {
       "tenant-model-id-3",
       "tenant-model-id-4",
     ])
+    expect(FALLBACK_AGENT_MODELS["tenant-model-id-2"]?.variants).toHaveProperty("max")
+    expect(FALLBACK_AGENT_MODELS["tenant-model-id-4"]?.variants).toHaveProperty("xhigh")
+  })
+})
+
+describe("prepareTabnineRequest", () => {
+  test("translates Claude variant sentinels to native thinking options", () => {
+    expect(
+      JSON.parse(String(prepareTabnineRequest({ body: JSON.stringify({ reasoning_effort: "claude-adaptive-high" }) }).body)),
+    ).toEqual({
+      thinking: { type: "adaptive", display: "summarized" },
+      output_config: { effort: "high" },
+    })
+    expect(
+      JSON.parse(String(prepareTabnineRequest({ body: JSON.stringify({ reasoning_effort: "claude-thinking-2048" }) }).body)),
+    ).toEqual({ thinking: { type: "enabled", budget_tokens: 2048 } })
+  })
+})
+
+describe("exposeClaudeReasoning", () => {
+  test("maps Claude content blocks to the OpenAI-compatible reasoning field", async () => {
+    const response = exposeClaudeReasoning(
+      jsonResponse({
+        choices: [
+          {
+            message: {
+              content: "answer",
+              content_blocks: [
+                { type: "thinking", thinking: "reasoning" },
+                { type: "text", text: "answer" },
+              ],
+            },
+          },
+        ],
+      }),
+    )
+
+    expect(await response.json()).toMatchObject({
+      choices: [{ message: { content: "answer", reasoning_content: "reasoning" } }],
+    })
+  })
+
+  test("maps streamed Claude thinking deltas without buffering the response", async () => {
+    const response = exposeClaudeReasoning(
+      new Response(
+        'data: {"choices":[{"delta":{"content_blocks":[{"delta":{"thinking":"reasoning"}}]}}]}\n\n' +
+          'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n' +
+          "data: [DONE]\n\n",
+        { headers: { "content-type": "text/event-stream" } },
+      ),
+    )
+
+    const text = await response.text()
+    expect(text).toContain('"reasoning_content":"reasoning"')
+    expect(text).toContain('"content":"answer"')
   })
 })

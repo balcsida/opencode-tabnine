@@ -9,7 +9,9 @@ import {
   OAUTH_DUMMY_KEY,
   PATH_CHAT_COMPLETIONS_BASE,
   PROVIDER_ID,
+  exposeClaudeReasoning,
   fetchAgentModels,
+  prepareTabnineRequest,
   readOpenCodeAuth,
   resolveBootstrapCredentials,
   resolveTabnineHost,
@@ -58,6 +60,9 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
         : {}
       const models = Object.keys(discovered).length ? discovered : FALLBACK_AGENT_MODELS
       const existing = config.provider?.[PROVIDER_ID]
+      const request = typeof existing?.options?.fetch === "function"
+        ? existing.options.fetch as Fetcher
+        : deps.fetch ?? fetch
       const existingHeaders =
         existing?.options?.headers && typeof existing.options.headers === "object" && !Array.isArray(existing.options.headers)
           ? (existing.options.headers as Record<string, string>)
@@ -76,7 +81,13 @@ export function createTabninePlugin(deps: PluginDeps = {}): Plugin {
               ...existingHeaders,
               "prompt-id": promptId,
             },
-            ...(bootstrap ? { apiKey: bootstrap } : {}),
+            ...(bootstrap
+              ? {
+                  apiKey: bootstrap,
+                  fetch: async (input: RequestInfo | URL, init?: RequestInit) =>
+                    exposeClaudeReasoning(await request(input, prepareTabnineRequest(init))),
+                }
+              : {}),
           },
           models: {
             ...models,
