@@ -232,6 +232,18 @@ describe("prepareTabnineRequest", () => {
       JSON.parse(String(prepareTabnineRequest({ body: JSON.stringify({ reasoning_effort: "claude-thinking-2048" }) }).body)),
     ).toEqual({ thinking: { type: "enabled", budget_tokens: 2048 } })
   })
+
+  test("omits GPT reasoning effort only when function tools are present", () => {
+    const prepare = (tools?: Array<{ type: string }>) =>
+      JSON.parse(String(prepareTabnineRequest({
+        body: JSON.stringify({ reasoning_effort: "high", ...(tools ? { tools } : {}) }),
+      }).body))
+
+    expect(prepare()).toEqual({ reasoning_effort: "high" })
+    expect(prepare([])).toEqual({ reasoning_effort: "high", tools: [] })
+    expect(prepare([{ type: "web_search" }])).toEqual({ reasoning_effort: "high", tools: [{ type: "web_search" }] })
+    expect(prepare([{ type: "function" }])).toEqual({ tools: [{ type: "function" }] })
+  })
 })
 
 describe("exposeClaudeReasoning", () => {

@@ -213,14 +213,20 @@ export function prepareTabnineRequest(init: RequestInit = {}) {
   try {
     const body = JSON.parse(init.body)
     const effort = body.reasoning_effort
-    if (typeof effort !== "string" || !effort.startsWith("claude-")) return init
-    delete body.reasoning_effort
-    if (effort.startsWith("claude-adaptive-")) {
-      body.thinking = { type: "adaptive", display: "summarized" }
-      body.output_config = { effort: effort.replace("claude-adaptive-", "") }
+    if (typeof effort !== "string") return init
+    if (effort.startsWith("claude-")) {
+      delete body.reasoning_effort
+      if (effort.startsWith("claude-adaptive-")) {
+        body.thinking = { type: "adaptive", display: "summarized" }
+        body.output_config = { effort: effort.replace("claude-adaptive-", "") }
+      } else {
+        const budget = Number(effort.match(/^claude-thinking-(\d+)$/)?.[1])
+        if (budget) body.thinking = { type: "enabled", budget_tokens: budget }
+      }
+    } else if (body.tools?.some((tool: { type?: string }) => tool.type === "function")) {
+      delete body.reasoning_effort
     } else {
-      const budget = Number(effort.match(/^claude-thinking-(\d+)$/)?.[1])
-      if (budget) body.thinking = { type: "enabled", budget_tokens: budget }
+      return init
     }
     return { ...init, body: JSON.stringify(body) }
   } catch {
