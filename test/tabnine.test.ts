@@ -236,7 +236,7 @@ describe("prepareTabnineRequest", () => {
 
 describe("exposeClaudeReasoning", () => {
   test("maps Claude content blocks to the OpenAI-compatible reasoning field", async () => {
-    const response = exposeClaudeReasoning(
+    const response = await exposeClaudeReasoning(
       jsonResponse({
         choices: [
           {
@@ -257,8 +257,28 @@ describe("exposeClaudeReasoning", () => {
     })
   })
 
+  test("passes error responses through untouched and logs the request id", async () => {
+    const logged: string[] = []
+    const original = console.error
+    console.error = (msg: string) => logged.push(msg)
+    try {
+      const response = await exposeClaudeReasoning(
+        new Response('{"error":"boom"}', {
+          status: 500,
+          headers: { "content-type": "application/json", "x-request-id": "req-123" },
+        }),
+      )
+      expect(response.status).toBe(500)
+      expect(await response.text()).toBe('{"error":"boom"}')
+      expect(logged[0]).toContain("x-request-id=req-123")
+      expect(logged[0]).toContain("boom")
+    } finally {
+      console.error = original
+    }
+  })
+
   test("maps streamed Claude thinking deltas without buffering the response", async () => {
-    const response = exposeClaudeReasoning(
+    const response = await exposeClaudeReasoning(
       new Response(
         'data: {"choices":[{"delta":{"content_blocks":[{"delta":{"thinking":"reasoning"}}]}}]}\n\n' +
           'data: {"choices":[{"delta":{"content":"answer"}}]}\n\n' +
