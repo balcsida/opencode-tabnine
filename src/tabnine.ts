@@ -234,7 +234,10 @@ export function prepareTabnineRequest(init: RequestInit = {}) {
   }
 }
 
-export function exposeClaudeReasoning(response: Response) {
+export async function exposeClaudeReasoning(response: Response) {
+  // ponytail: only errors get logged; add success-path tracing if latency ever matters
+  if (!response.ok) return logTabnineError(response)
+
   const type = response.headers.get("content-type") ?? ""
   if (type.includes("text/event-stream")) {
     return new Response(response.body?.pipeThrough(sseReasoningTransform()), response)
@@ -250,6 +253,17 @@ export function exposeClaudeReasoning(response: Response) {
     }),
     response,
   )
+}
+
+async function logTabnineError(response: Response) {
+  const body = await response.text()
+  const ids = ["x-request-id", "x-correlation-id", "cf-ray"]
+    .map((h) => [h, response.headers.get(h)] as const)
+    .filter(([, v]) => v)
+    .map(([h, v]) => `${h}=${v}`)
+    .join(" ")
+  console.error(`[tabnine] ${response.status} ${response.url} ${ids} ${body.slice(0, 2000)}`)
+  return new Response(body, response)
 }
 
 function sseReasoningTransform() {
