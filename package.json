@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/package.json",
   "name": "opencode-provider-tabnine",
   "version": "0.1.5",
-  "description": "OpenCode plugin that exposes Tabnine Agentic as a provider",
+  "description": "Deprecated: use the official Tabnine plugin for OpenCode",
   "type": "module",
   "license": "MIT",
   "author": "David Balatoni <balcsida@gmail.com>",
@@ -10,7 +10,7 @@
     "type": "git",
     "url": "git+https://github.com/balcsida/opencode-tabnine.git"
   },
-  "homepage": "https://github.com/balcsida/opencode-tabnine",
+  "homepage": "https://docs.tabnine.com/main/getting-started/tabnine-plugin-for-opencode",
   "bugs": "https://github.com/balcsida/opencode-tabnine/issues",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
